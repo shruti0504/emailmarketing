@@ -132,4 +132,18 @@ async update(
     },
   });
 }
+
+async findByEmails(
+  workspaceId: string,
+  emails: string[]
+) {
+  return prisma.contact.findMany({
+    where: {
+      workspaceId,
+      email: {
+        in: emails,
+      },
+    },
+  });
+}
 }
