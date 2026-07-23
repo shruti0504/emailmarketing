@@ -1,3 +1,4 @@
+import { campaignQueue } from "../queues/campaign.queue.js";
 import { CampaignRepository } from "../repositories/campaign.repository.js";
 import { CampaignRecipientRepository } from "../repositories/campaignRecipient.repository.js";
 import { CreateCampaignDto } from "../types/campaign.types.js";
@@ -51,7 +52,18 @@ export class CampaignService {
       c => c.id
     )
   );
-
+await campaignQueue.add(
+  "send-campaign",
+  {
+    campaignId: campaign.id,
+    workspaceId,
+  },
+  {
+    delay: campaign.scheduledAt
+      ? new Date(campaign.scheduledAt).getTime() - Date.now()
+      : 0,
+  }
+);
   return {
     campaign,
     matchedRecipients:
