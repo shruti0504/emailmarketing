@@ -3,11 +3,181 @@
 
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
+
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+}
+
+enum RecipientStatus {
+  PENDING
+  SENT
+  DELIVERED
+  OPENED
+  FAILED
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  companyName String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  contacts    Contact[]
+  tags        Tag[]
+  audiences   Audience[]
+  campaigns   Campaign[]
+}
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  password    String
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  refreshTokens RefreshToken[]
+
+  createdAt   DateTime @default(now())
+}
+
+model Contact {
+  id            String   @id @default(cuid())
+
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  name          String
+  email         String?
+  phone         String?
+  city          String?
+
+  customFields  Json?
+
+  createdAt     DateTime @default(now())
+
+  tags          ContactTag[]
+  recipients    CampaignRecipient[]
+
+  @@unique([workspaceId, email])
+  @@unique([workspaceId, phone])
+}
+
+model Tag {
+  id          String   @id @default(cuid())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  name        String
+
+  contacts    ContactTag[]
+
+  @@unique([workspaceId, name])
+}
+
+model ContactTag {
+  contactId String
+  tagId     String
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag     Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contactId, tagId])
+}
+
+model Audience {
+  id          String @id @default(cuid())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  name        String
+
+  filterJson  Json
+
+  createdAt   DateTime @default(now())
+}
+
+model Campaign {
+  id            String   @id @default(cuid())
+
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  name          String
+  subject       String
+  body          String
+
+  status        CampaignStatus @default(DRAFT)
+
+  scheduledAt   DateTime?
+
+  providerId    String?
+
+  createdAt     DateTime @default(now())
+
+  recipients    CampaignRecipient[]
+}
+
+model CampaignRecipient {
+  id            String @id @default(cuid())
+
+  campaignId    String
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  contactId     String
+  contact       Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  providerMessageId String?
+
+  status        RecipientStatus @default(PENDING)
+
+  deliveredAt   DateTime?
+  openedAt      DateTime?
+}
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+
+  provider    String
+
+  messageId   String
+
+  event       String
+
+  payload     Json
+
+  receivedAt  DateTime @default(now())
+}
+
+model RefreshToken {
+  id          String   @id @default(cuid())
+
+  tokenHash   String
+
+  userId      String
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  expiresAt   DateTime
+
+  createdAt   DateTime @default(now())
+
+  revokedAt   DateTime?
+
+  replacedBy  String?
 }
