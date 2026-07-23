@@ -1,10 +1,11 @@
 import csv from "csv-parser";
 import { Readable } from "stream";
 import { ContactService } from "./contact.service.js";
+import { TagService } from "./tag.service.js";
 
 
 const contactService = new ContactService();
-
+const tagService = new TagService();
 
 export class CsvService {
 
@@ -46,16 +47,31 @@ export class CsvService {
                     ...customFields
                 } = row;
 
-                await contactService.createContact(
-                    workspaceId,
-                    {
-                        name,
-                        email,
-                        phone,
-                        city,
-                        customFields
-                    }
-                );
+               const contact =
+await contactService.createContact(
+  workspaceId,
+  {
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    city: row.city,
+     tags: row.tags
+      ? row.tags.split(",")
+      : [],
+    customFields: {},
+  }
+);
+if (row.tags) {
+
+  const tags =
+    row.tags.split(",");
+
+  await tagService.assignTags(
+    workspaceId,
+    contact.id,
+    tags
+  );
+}
 
                 added++;
 

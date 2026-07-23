@@ -3,5 +3,7 @@ export interface CreateContactDto {
   email: string;
   phone: string;
   city?: string;
+
+  tags?: string[];
   customFields?: Record<string, any>;
 }

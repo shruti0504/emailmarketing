@@ -71,17 +71,21 @@ export class ContactRepository {
     });
   }
 
-  async update(
-    id: string,
-    data: Partial<CreateContactDto>
-  ) {
-    return prisma.contact.update({
-      where: {
-        id,
-      },
-      data,
-    });
-  }
+async update(
+  id: string,
+  data: Partial<CreateContactDto>
+) {
+
+  const { tags, ...contactData } = data;
+
+  return prisma.contact.update({
+    where: {
+      id,
+    },
+    data: contactData,
+  });
+
+}
 
   async delete(id: string) {
     return prisma.contact.delete({
