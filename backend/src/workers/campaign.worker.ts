@@ -37,18 +37,18 @@ const worker = new Worker(
       }
 
       try {
+const result = await mailService.sendMail(
+  recipient.contact.email,
+  recipient.contact.name,
+  campaign.subject,
+  campaign.body
+);
 
-        await mailService.sendMail(
-          recipient.contact.email,
-          recipient.contact.name,
-          campaign.subject,
-          campaign.body
-        );
-
-        await recipientRepository.updateStatus(
-          recipient.id,
-          "SENT"
-        );
+await recipientRepository.updateStatus(
+  recipient.id,
+  "SENT",
+  result.messageId
+);
 
         console.log(
           `✅ Email sent to ${recipient.contact.email}`

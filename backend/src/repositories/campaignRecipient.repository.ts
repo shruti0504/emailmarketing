@@ -41,4 +41,41 @@ export class CampaignRecipientRepository {
   });
 }
 
+async findByMessageId(
+  messageId: string
+) {
+  return prisma.campaignRecipient.findFirst({
+    where: {
+      providerMessageId: messageId,
+    },
+  });
+}
+
+async markDelivered(
+  id: string
+) {
+  return prisma.campaignRecipient.update({
+    where: {
+      id,
+    },
+    data: {
+      status: "DELIVERED",
+      deliveredAt: new Date(),
+    },
+  });
+}
+
+async markOpened(
+  id: string
+) {
+  return prisma.campaignRecipient.update({
+    where: {
+      id,
+    },
+    data: {
+      status: "OPENED",
+      openedAt: new Date(),
+    },
+  });
+}
 }

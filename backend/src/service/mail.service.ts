@@ -8,7 +8,7 @@ export class MailService {
     subject: string,
     html: string
   ) {
-    return axios.post(
+    const response = await axios.post(
       "https://api.brevo.com/v3/smtp/email",
       {
         sender: {
@@ -32,5 +32,7 @@ export class MailService {
         },
       }
     );
+
+    return response.data;
   }
 }
