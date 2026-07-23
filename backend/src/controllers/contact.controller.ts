@@ -1,7 +1,9 @@
-import { Request, Response } from "express";
-import { ContactService } from "../service/contact.service.js";
 
+import { ContactService } from "../service/contact.service.js";
+import { CsvService } from "../service/csv.service.js";
+import { Request, Response, NextFunction } from "express";
 const contactService = new ContactService();
+const csvService = new CsvService();
 interface ContactParams {
   id: string;
 }
@@ -48,7 +50,7 @@ export class ContactController {
   }
 }
 async getById(
-  req: Request<ContactParams>,
+  req: Request<{id:string}>,
   res: Response
 ){
   try {
@@ -70,7 +72,7 @@ async getById(
   }
 }
 async update(
-  req: Request<ContactParams>,
+  req: Request<{id:string}>,
   res: Response
 ) {
   try {
@@ -94,7 +96,7 @@ async update(
   }
 }
 async delete(
-  req: Request<ContactParams>,
+  req: Request<{id:string}>,
   res: Response
 ) {
   try {
@@ -112,6 +114,44 @@ async delete(
       success: false,
       message: error.message,
     });
+  }
+}
+
+async importContacts(
+  req: Request,
+  res: Response
+) {
+  try {
+
+    if (!req.file) {
+      return res.status(400).json({
+        success:false,
+        message:"CSV file is required"
+      });
+    }
+
+
+    const result =
+      await csvService.importContacts(
+        req.file.buffer,
+        req.user.workspaceId
+      );
+
+
+    return res.status(200).json({
+      success:true,
+      message:"Contacts imported successfully",
+      data: result
+    });
+
+
+  } catch(error:any){
+
+    return res.status(500).json({
+      success:false,
+      message:error.message
+    });
+
   }
 }
 }
