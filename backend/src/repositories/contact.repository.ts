@@ -94,4 +94,42 @@ async update(
       },
     });
   }
+
+  async findByFilters(
+  workspaceId: string,
+  filters: {
+    city?: string;
+    tags?: string[];
+  }
+) {
+  return prisma.contact.findMany({
+    where: {
+      workspaceId,
+
+      ...(filters.city && {
+        city: filters.city,
+      }),
+
+      ...(filters.tags?.length && {
+        tags: {
+          some: {
+            tag: {
+              name: {
+                in: filters.tags,
+              },
+            },
+          },
+        },
+      }),
+    },
+
+    include: {
+      tags: {
+        include: {
+          tag: true,
+        },
+      },
+    },
+  });
+}
 }
