@@ -56,4 +56,18 @@ export class CampaignRepository {
       },
     });
   }
+  async findWithRecipients(id: string) {
+  return prisma.campaign.findUnique({
+    where: {
+      id,
+    },
+    include: {
+      recipients: {
+        include: {
+          contact: true,
+        },
+      },
+    },
+  });
+}
 }

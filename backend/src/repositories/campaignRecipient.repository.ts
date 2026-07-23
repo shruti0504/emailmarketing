@@ -20,4 +20,25 @@ export class CampaignRecipientRepository {
 
   }
 
+  async updateStatus(
+  id: string,
+  status:
+    | "PENDING"
+    | "SENT"
+    | "DELIVERED"
+    | "OPENED"
+    | "FAILED",
+  providerMessageId?: string
+) {
+  return prisma.campaignRecipient.update({
+    where: {
+      id,
+    },
+    data: {
+      status,
+      providerMessageId,
+    },
+  });
+}
+
 }
