@@ -16,4 +16,6 @@ export const env = {
   BREVO_API_KEY:process.env.BREVO_API_KEY,
 
   MAIL_FROM:process.env.MAIL_FROM,
+
+  REDIS_URL: process.env.REDIS_URL ?? "",
 };
