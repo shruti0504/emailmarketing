@@ -1,4 +1,7 @@
 import { Request, Response } from "express";
+import { WebhookRepository } from "../repositories/webhook.repository.js";
+
+const webhookRepository = new WebhookRepository();
 
 export class WebhookController {
 
@@ -10,10 +13,16 @@ export class WebhookController {
     console.log("========== BREVO WEBHOOK ==========");
     console.log(req.body);
 
+    await webhookRepository.create(
+      "brevo",
+      req.body["message-id"] ?? "",
+      req.body.event ?? "",
+      req.body
+    );
+
     return res.status(200).json({
-      success: true
+      success: true,
     });
 
   };
-
 }
