@@ -31,4 +31,11 @@ app.use(
   "/api/campaigns",
   campaignRoutes
 );
+
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "Email Marketing API is running",
+  });
+});
 export default app;
