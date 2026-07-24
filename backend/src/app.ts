@@ -5,6 +5,7 @@ import authRoutes from "./routes/auth.routes.js";
 import contactRoutes from "./routes/contact.routes.js";
 import audienceRoutes from "./routes/audience.routes.js";
 import campaignRoutes from "./routes/campaign.routes.js";
+import webhookRoutes from "./routes/webhook.routes.js";
 
 
 const app = express();
@@ -38,4 +39,9 @@ app.get("/", (req, res) => {
     message: "Email Marketing API is running",
   });
 });
+
+app.use(
+  "/api/webhooks",
+  webhookRoutes
+);
 export default app;
