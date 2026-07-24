@@ -78,4 +78,15 @@ async markOpened(
     },
   });
 }
+
+async findByProviderMessageId(
+  providerMessageId: string
+) {
+  return prisma.campaignRecipient.findFirst({
+    where: {
+      providerMessageId,
+    },
+  });
 }
+}
+
