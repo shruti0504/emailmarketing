@@ -1,8 +1,9 @@
 import { Request, Response } from "express";
 import { CampaignService } from "../service/campaign.service.js";
+import { CampaignRepository } from "../repositories/campaign.repository.js";
 
 const campaignService = new CampaignService();
-
+const campaignRepository = new CampaignRepository();
 export class CampaignController {
   async create(req: Request, res: Response) {
     try {
@@ -62,4 +63,22 @@ export class CampaignController {
       });
     }
   }
+
+  getAnalytics = async (
+  req: Request,
+  res: Response
+) => {
+
+const analytics =
+  await campaignRepository.getAnalytics(
+    req.params.id as string,
+    req.user.workspaceId
+  );
+
+  return res.json({
+    success: true,
+    data: analytics,
+  });
+
+};
 }

@@ -23,4 +23,10 @@ router.get(
   campaignController.getById
 );
 
+router.get(
+  "/:id/analytics",
+  authMiddleware,
+  campaignController.getAnalytics
+);
+
 export default router;

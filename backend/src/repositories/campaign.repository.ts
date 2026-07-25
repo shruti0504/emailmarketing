@@ -70,4 +70,25 @@ export class CampaignRepository {
     },
   });
 }
+async getAnalytics(campaignId: string, workspaceId: string) {
+  const recipients = await prisma.campaignRecipient.findMany({
+    where: {
+      campaignId,
+      campaign: {
+        workspaceId,
+      },
+    },
+    select: {
+      status: true,
+    },
+  });
+
+  return {
+    totalRecipients: recipients.length,
+    sent: recipients.filter(r => r.status === "SENT").length,
+    delivered: recipients.filter(r => r.status === "DELIVERED").length,
+    opened: recipients.filter(r => r.status === "OPENED").length,
+    failed: recipients.filter(r => r.status === "FAILED").length,
+  };
+}
 }
