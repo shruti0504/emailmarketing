@@ -52,6 +52,13 @@ export class CampaignService {
       c => c.id
     )
   );
+
+  const delay = campaign.scheduledAt
+  ? Math.max(
+      new Date(campaign.scheduledAt).getTime() - Date.now(),
+      0
+    )
+  : 0;
 await campaignQueue.add(
   "send-campaign",
   {
@@ -59,9 +66,7 @@ await campaignQueue.add(
     workspaceId,
   },
   {
-    delay: campaign.scheduledAt
-      ? new Date(campaign.scheduledAt).getTime() - Date.now()
-      : 0,
+    delay,
   }
 );
   return {

@@ -54,4 +54,19 @@ export class AuthRepository {
       data,
     });
   }
+
+  async findRefreshToken(tokenHash: string) {
+  return prisma.refreshToken.findFirst({
+    where: {
+      tokenHash,
+    },
+    include: {
+      user: {
+        include: {
+          workspace: true,
+        },
+      },
+    },
+  });
+}
 }

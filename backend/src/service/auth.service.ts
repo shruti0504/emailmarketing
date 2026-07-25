@@ -1,7 +1,7 @@
 import prisma from "../config/prisma.js";
 import { AuthRepository } from "../repositories/auth.repository.js";
 import { LoginDto, SignupDto } from "../types/auth.types.js";
-import { generateAccessToken, generateRefreshToken, JwtPayload } from "../utils/jwt.js";
+import { generateAccessToken, generateRefreshToken, JwtPayload,verifyRefreshToken } from "../utils/jwt.js";
 import { hashPassword } from "../utils/password.js";
 import { hashToken } from "../utils/token.js";
 import { comparePassword } from "../utils/password.js";
@@ -122,6 +122,46 @@ async login(data: LoginDto) {
       email: user.email,
       workspace: user.workspace,
     },
+  };
+}
+
+async refresh(refreshToken: string) {
+
+  const tokenHash = hashToken(refreshToken);
+
+
+  const storedToken =
+    await this.authRepository.findRefreshToken(
+      tokenHash
+    );
+
+
+  if (!storedToken) {
+    throw new Error("Invalid refresh token");
+  }
+
+
+  if (
+    storedToken.expiresAt < new Date()
+  ) {
+    throw new Error("Refresh token expired");
+  }
+
+
+  const payload =
+    verifyRefreshToken(refreshToken);
+
+
+  const accessToken =
+    generateAccessToken({
+      userId: storedToken.user.id,
+      workspaceId: storedToken.user.workspaceId,
+      email: storedToken.user.email,
+    });
+
+
+  return {
+    accessToken,
   };
 }
 }
