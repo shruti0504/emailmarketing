@@ -51,34 +51,42 @@ refresh = async (
   req: Request,
   res: Response
 ) => {
+  console.log("[Auth] Refresh request received");
+
   try {
 
-    const refreshToken =
-      req.cookies.refreshToken;
+    const refreshToken = req.cookies.refreshToken;
 
+    console.log(
+      "[Auth] Refresh token cookie present:",
+      !!refreshToken
+    );
 
     if (!refreshToken) {
       throw new Error("Refresh token missing");
     }
 
-
     const result =
-      await this.authService.refresh(
-        refreshToken
-      );
+      await this.authService.refresh(refreshToken);
 
+    console.log("[Auth] New access token generated: true");
 
     return res.status(200).json({
-      success:true,
+      success: true,
       accessToken: result.accessToken
     });
 
 
-  } catch(error:any){
+  } catch(error: any) {
+
+    console.log(
+      "[Auth] Refresh token validation failed:",
+      error.message
+    );
 
     return res.status(401).json({
-      success:false,
-      message:error.message
+      success: false,
+      message: error.message
     });
 
   }
