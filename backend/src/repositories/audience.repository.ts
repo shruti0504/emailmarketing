@@ -38,10 +38,11 @@ export class AudienceRepository {
     });
   }
 
-  async delete(id: string) {
+  async delete(id: string, workspaceId: string) {
     return prisma.audience.delete({
       where: {
         id,
+        workspaceId,
       },
     });
   }

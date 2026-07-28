@@ -30,13 +30,27 @@ export class CampaignRecipientRepository {
     | "FAILED",
   providerMessageId?: string
 ) {
+  // Build the timestamp update depending on the new status.
+  // IMPORTANT: Only set the timestamp for the current transition.
+  // Do NOT overwrite deliveredAt when status moves to OPENED.
+  const timestampData: Record<string, Date | undefined> = {};
+
+  if (status === "DELIVERED") {
+    timestampData.deliveredAt = new Date();
+  }
+
+  if (status === "OPENED") {
+    timestampData.openedAt = new Date();
+    // deliveredAt is intentionally NOT touched here —
+    // Prisma partial update leaves it as-is in the database.
+  }
+
   return prisma.campaignRecipient.update({
-    where: {
-      id,
-    },
+    where: { id },
     data: {
       status,
-      providerMessageId,
+      ...(providerMessageId !== undefined && { providerMessageId }),
+      ...timestampData,
     },
   });
 }

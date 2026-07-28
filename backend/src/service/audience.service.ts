@@ -27,7 +27,7 @@ async getAudiences(
     );
 
   return Promise.all(
-    audiences.map(async (audience) => {
+    audiences.map(async (audience: any) => {
 
       const filters =
         audience.filterJson as {
@@ -96,6 +96,6 @@ async getAudienceById(
       throw new Error("Audience not found");
     }
 
-    await this.audienceRepository.delete(id);
+    await this.audienceRepository.delete(id, workspaceId);
   }
 }

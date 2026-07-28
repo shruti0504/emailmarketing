@@ -112,6 +112,7 @@ async updateContact(
 const updated =
   await this.contactRepository.update(
     id,
+    workspaceId,
     {
       ...data,
       name: data.name?.trim(),
@@ -147,6 +148,6 @@ async deleteContact(
     );
   }
 
-  await this.contactRepository.delete(id);
+  await this.contactRepository.delete(id, workspaceId);
 }
 }

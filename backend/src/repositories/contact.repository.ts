@@ -73,6 +73,7 @@ export class ContactRepository {
 
 async update(
   id: string,
+  workspaceId: string,
   data: Partial<CreateContactDto>
 ) {
 
@@ -81,16 +82,18 @@ async update(
   return prisma.contact.update({
     where: {
       id,
+      workspaceId,
     },
     data: contactData,
   });
 
 }
 
-  async delete(id: string) {
+  async delete(id: string, workspaceId: string) {
     return prisma.contact.delete({
       where: {
         id,
+        workspaceId,
       },
     });
   }

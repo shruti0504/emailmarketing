@@ -37,38 +37,50 @@ const worker = new Worker(
       }
 
       try {
-const result = await mailService.sendMail(
-  recipient.contact.email,
-  recipient.contact.name,
-  campaign.subject,
-  campaign.body
-);
-
-await recipientRepository.updateStatus(
-  recipient.id,
-  "SENT",
-  result.messageId
-);
-
-        console.log(
-          `✅ Email sent to ${recipient.contact.email}`
+        const result = await mailService.sendMail(
+          recipient.contact.email,
+          recipient.contact.name,
+          campaign.subject,
+          campaign.body
         );
 
+        // Log the full Brevo response so we can verify the messageId format
+        console.log(
+          `[Worker] Brevo API response for ${recipient.contact.email}:`,
+          JSON.stringify(result)
+        );
+
+        const brevoMessageId: string | undefined =
+          result?.messageId ?? result?.["message-id"] ?? undefined;
+
+        console.log(
+          `[Worker] Saving providerMessageId="${brevoMessageId}" ` +
+          `for recipient id="${recipient.id}" (${recipient.contact.email})`
+        );
+
+        await recipientRepository.updateStatus(
+          recipient.id,
+          "SENT",
+          brevoMessageId
+        );
+
+        console.log(`[Worker] ✅ Email SENT to ${recipient.contact.email}`);
+
       } catch (error: any) {
-  console.log(`❌ Failed ${recipient.contact.email}`);
+        console.log(`[Worker] ❌ Failed to send to ${recipient.contact.email}`);
 
-  if (error.response) {
-    console.log("Status:", error.response.status);
-    console.log("Response:", error.response.data);
-  } else {
-    console.log(error.message);
-  }
+        if (error.response) {
+          console.log("[Worker] Brevo Error Status:", error.response.status);
+          console.log("[Worker] Brevo Error Body:", JSON.stringify(error.response.data));
+        } else {
+          console.log("[Worker] Error:", error.message);
+        }
 
-  await recipientRepository.updateStatus(
-    recipient.id,
-    "FAILED"
-  );
-}
+        await recipientRepository.updateStatus(
+          recipient.id,
+          "FAILED"
+        );
+      }
     }
 
     await campaignRepository.updateStatus(

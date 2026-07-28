@@ -40,6 +40,13 @@ export class CampaignRepository {
         id,
         workspaceId,
       },
+      include: {
+        recipients: {
+          include: {
+            contact: true,
+          },
+        },
+      },
     });
   }
 
@@ -85,10 +92,10 @@ async getAnalytics(campaignId: string, workspaceId: string) {
 
   return {
     totalRecipients: recipients.length,
-    sent: recipients.filter(r => r.status === "SENT").length,
-    delivered: recipients.filter(r => r.status === "DELIVERED").length,
-    opened: recipients.filter(r => r.status === "OPENED").length,
-    failed: recipients.filter(r => r.status === "FAILED").length,
+    sent: recipients.filter((r: { status: string }) => r.status === "SENT").length,
+    delivered: recipients.filter((r: { status: string }) => r.status === "DELIVERED").length,
+    opened: recipients.filter((r: { status: string }) => r.status === "OPENED").length,
+    failed: recipients.filter((r: { status: string }) => r.status === "FAILED").length,
   };
 }
 }

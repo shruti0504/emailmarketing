@@ -25,7 +25,7 @@ const email = data.email.trim().toLowerCase();
     const hashedPassword =
       await hashPassword(data.password);
 
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: any) => {
       const workspace =
         await this.authRepository.createWorkspace(
           tx,

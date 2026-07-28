@@ -76,7 +76,7 @@ async resolveRecipients(
       );
 
     const matchedEmails =
-      contacts.map(c => c.email);
+      contacts.map((c: { email: string | null }) => c.email);
 
     const unmatched =
       options.emails.filter(

@@ -49,7 +49,7 @@ export class CampaignService {
   await this.campaignRecipientRepository.createMany(
     campaign.id,
     recipients.matched.map(
-      c => c.id
+      (c: { id: string }) => c.id
     )
   );
 
