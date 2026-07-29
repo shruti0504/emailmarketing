@@ -55,25 +55,13 @@ const AppSidebar: React.FC = () => {
   const pathname = usePathname();
   const router = useRouter();
 
-  const handleLogout = async () => {
-    try {
-      await fetch("http://localhost:5000/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      }).catch(() => { });
-    } catch {
-      // ignore network errors on logout
-    } finally {
-      sessionStorage.removeItem("access_token");
-      sessionStorage.removeItem("user");
-      sessionStorage.removeItem("user_role");
+const handleLogout = () => {
+  sessionStorage.clear();
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("user");
 
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("user");
-
-      router.push("/signin");
-    }
-  };
+  router.replace("/signin");
+};
 
   const isActive = useCallback((path?: string) => path ? pathname.startsWith(path) : false, [pathname]);
 
@@ -97,20 +85,8 @@ const AppSidebar: React.FC = () => {
         <Link href="/campaigns">
           {isExpanded || isHovered || isMobileOpen ? (
             <>
-              <Image
-                className="dark:hidden"
-                src="/images/logo/logo.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-              <Image
-                className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
+            
+             
             </>
           ) : (
             <Image
