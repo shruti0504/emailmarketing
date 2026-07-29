@@ -4,6 +4,7 @@ import { CampaignRepository } from "../repositories/campaign.repository.js";
 
 const campaignService = new CampaignService();
 const campaignRepository = new CampaignRepository();
+
 export class CampaignController {
   async create(req: Request, res: Response) {
     try {
@@ -20,7 +21,7 @@ export class CampaignController {
     } catch (error: any) {
       return res.status(error.statusCode || 500).json({
         success: false,
-        message: error.message,
+        message: error.message || "Internal Server Error",
       });
     }
   }
@@ -36,9 +37,9 @@ export class CampaignController {
         data: campaigns,
       });
     } catch (error: any) {
-      return res.status(500).json({
+      return res.status(error.statusCode || 500).json({
         success: false,
-        message: error.message,
+        message: error.message || "Internal Server Error",
       });
     }
   }
@@ -59,26 +60,46 @@ export class CampaignController {
     } catch (error: any) {
       return res.status(error.statusCode || 500).json({
         success: false,
-        message: error.message,
+        message: error.message || "Internal Server Error",
       });
     }
   }
 
-  getAnalytics = async (
-  req: Request,
-  res: Response
-) => {
+  getAnalytics = async (req: Request, res: Response) => {
+    try {
+      const analytics = await campaignRepository.getAnalytics(
+        req.params.id as string,
+        req.user.workspaceId
+      );
 
-const analytics =
-  await campaignRepository.getAnalytics(
-    req.params.id as string,
-    req.user.workspaceId
-  );
+      return res.json({
+        success: true,
+        data: analytics,
+      });
+    } catch (error: any) {
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  };
 
-  return res.json({
-    success: true,
-    data: analytics,
-  });
+  delete = async (req: Request<{ id: string }>, res: Response) => {
+    try {
+      await campaignService.deleteCampaign(
+        req.params.id,
+        req.user.workspaceId
+      );
 
-};
+      return res.json({
+        success: true,
+        message: "Campaign deleted successfully.",
+      });
+    } catch (error: any) {
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  };
 }

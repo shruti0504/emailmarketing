@@ -5,7 +5,6 @@ export interface CreateCampaignDto {
 
   audienceId?: string;
   tags?: string[];
-  emails?: string[];
 
-  scheduledAt?: string;
+  scheduledAt?: string | null;
 }

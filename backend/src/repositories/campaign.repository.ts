@@ -98,4 +98,30 @@ async getAnalytics(campaignId: string, workspaceId: string) {
     failed: recipients.filter((r: { status: string }) => r.status === "FAILED").length,
   };
 }
+
+async update(
+  id: string,
+  workspaceId: string,
+  data: Partial<CreateCampaignDto>
+) {
+  // Ownership is already validated by the service layer via findById
+  return prisma.campaign.update({
+    where: { id },
+    data: {
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.subject !== undefined && { subject: data.subject }),
+      ...(data.body !== undefined && { body: data.body }),
+      ...(data.scheduledAt !== undefined && {
+        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
+      }),
+    },
+  });
 }
+
+async delete(id: string, workspaceId: string) {
+  // Ownership is already validated by the service layer via findById
+  return prisma.campaign.delete({
+    where: { id },
+  });
+}
+}

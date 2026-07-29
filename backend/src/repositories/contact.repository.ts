@@ -3,72 +3,108 @@ import { CreateContactDto } from "../types/contact.types.js";
 
 
 export class ContactRepository {
+  public formatContact(contact: any) {
+    if (!contact) return null;
+    const { tags, ...rest } = contact;
+    const formattedTags = Array.isArray(tags)
+      ? tags.map((t: any) =>
+          typeof t.tag?.name === "string"
+            ? t.tag.name
+            : typeof t.name === "string"
+            ? t.name
+            : String(t)
+        )
+      : [];
+    return {
+      ...rest,
+      tags: formattedTags,
+    };
+  }
     
   async create(
     workspaceId: string,
     data: CreateContactDto
   ) {
-    return prisma.contact.create({
+    const cleanEmail = data.email?.trim() ? data.email.trim().toLowerCase() : null;
+    const cleanPhone = data.phone?.trim() ? data.phone.trim() : null;
+    const cleanCity = data.city?.trim() ? data.city.trim() : null;
+
+    const contact = await prisma.contact.create({
       data: {
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        city: data.city,
-        customFields: data.customFields,
+        name: data.name.trim(),
+        email: cleanEmail,
+        phone: cleanPhone,
+        city: cleanCity,
+        customFields: data.customFields || undefined,
         workspaceId,
       },
     });
+    return this.formatContact(contact);
   }
-
 
   async findDuplicate(
-  workspaceId: string,
-  email?: string,
-  phone?: string
-) {
-  const conditions = [];
+    workspaceId: string,
+    email?: string | null,
+    phone?: string | null
+  ) {
+    const conditions = [];
 
-  if (email) {
-    conditions.push({ email });
-  }
+    if (email && email.trim()) {
+      conditions.push({ email: email.trim().toLowerCase() });
+    }
 
-  if (phone) {
-    conditions.push({ phone });
-  }
+    if (phone && phone.trim()) {
+      conditions.push({ phone: phone.trim() });
+    }
 
-  // Nothing to check
-  if (conditions.length === 0) {
-    return null;
-  }
+    if (conditions.length === 0) {
+      return null;
+    }
 
-  return prisma.contact.findFirst({
-    where: {
-      workspaceId,
-      OR: conditions,
-    },
-  });
-}
-  async findAll(workspaceId: string) {
-    return prisma.contact.findMany({
+    return prisma.contact.findFirst({
       where: {
         workspaceId,
+        OR: conditions,
+      },
+    });
+  }
+  async findAll(workspaceId: string) {
+    const contacts = await prisma.contact.findMany({
+      where: {
+        workspaceId,
+      },
+      include: {
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",
       },
     });
+    return contacts.map((c: any) => this.formatContact(c));
   }
 
   async findById(
     id: string,
     workspaceId: string
   ) {
-    return prisma.contact.findFirst({
+    const contact = await prisma.contact.findFirst({
       where: {
         id,
         workspaceId,
       },
+      include: {
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
     });
+    return this.formatContact(contact);
   }
 
 async update(
@@ -79,14 +115,21 @@ async update(
 
   const { tags, ...contactData } = data;
 
-  return prisma.contact.update({
+  const updated = await prisma.contact.update({
     where: {
       id,
       workspaceId,
     },
     data: contactData,
+    include: {
+      tags: {
+        include: {
+          tag: true,
+        },
+      },
+    },
   });
-
+  return this.formatContact(updated);
 }
 
   async delete(id: string, workspaceId: string) {
