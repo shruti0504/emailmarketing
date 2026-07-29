@@ -230,3 +230,6 @@ npm run dev
 - **Backend API**: Render Web Service (`npm run start`).
 - **Worker Process**: Render Background Worker (`npm run worker`).
 - **Frontend**: Render / Vercel Web Service (`npm run build && npm run start`).
+
+
+- **Note**: The application is hosted on Render's free tier. If the services have been idle, the first request may take a short while as they wake up.
