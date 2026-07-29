@@ -1,49 +1,232 @@
-# Take-home assignment
+# Email Marketing Platform (Mailchimp Alternative)
 
-Give yourself about three days for this. We'd rather see something smaller that's finished and deployed than a big thing that half works, so scope accordingly.
+A complete, production-ready full-stack Email Marketing application built with **Next.js**, **Express**, **Prisma (PostgreSQL)**, **Redis (BullMQ)**, and **Brevo Webhooks**.
 
-## The gist
+---
 
-You're building a small email marketing app, basically a cut-down Mailchimp. A company signs up, brings in their list of contacts, groups those contacts, and sends email campaigns to them. After a campaign goes out they can see how it did (how many landed, how many got opened).
+##  Quick Links & Live Deployment
 
-It's deliberately close to what we actually work on, so treat it like a real product feature and not a throwaway demo. What we're really trying to learn from this is how you lay out a codebase, how you think about your data, and how you deal with the fiddly bits: messy contact imports, provider webhooks, and running things on a schedule.
+- **Live Web App**: as mentioned in mail
+---
 
-## Stack we want
+## 🛠️ Architecture & Technology Stack
 
-Next.js on the front, Express for the API, Postgres for storage, and Redis (with BullMQ or something similar) for the scheduling. Please keep the frontend and backend properly separated rather than cramming everything into Next's API routes. If you set it up as a monorepo, even better, though that's not required.
+| Layer | Technology | Key Usage |
+| :--- | :--- | :--- |
+| **Frontend** | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Zustand | Reactive dashboard UI, client validation, state management, auto-polling analytics |
+| **Backend API** | Express.js, Node.js (ES Modules), TypeScript, Zod | Layered architecture (`routes → controllers → service → repository`), input validation middleware |
+| **Database & ORM** | PostgreSQL, Prisma ORM | Multi-tenant schema, strict DB unique constraints, relational queries |
+| **Queue & Worker** | Redis, BullMQ | Asynchronous email job queueing, scheduled campaign delivery via native Redis delay |
+| **Email Service & Webhooks** | Brevo API, Express Webhook Handler | Transactional email dispatch, status tracking (Delivered, Opened, Bounced) |
 
-## What it needs to do
+---
 
-**Auth and workspaces.** Normal sign up / log in. Each account is walled off from the others, so someone logged into account A can't see account B's contacts, audiences or campaigns. Do this on the server. We will try to reach across accounts to see if we can.
 
-**Contacts.** The usual CRUD. Beyond name, email and phone, let people add their own custom fields rather than locking them to a fixed schema. There's a CSV importer too. Use the sample file in `mock-data/contacts.csv` to test it. Fair warning, that file has some duplicate emails and phone numbers in it on purpose. Handle those. Whether you skip them or merge them is up to you, but don't silently pile up copies, and tell the user what happened after an import ("15 added, 3 skipped as duplicates", that kind of thing). The same duplicate check should apply when someone adds a contact by hand.
+## End-to-End User Flow & Usage Guide
 
-**Audiences.** A user should be able to save a named group of contacts by filtering the ones they already have (by a tag, by city, by whatever fields exist). Show how many people each audience contains. These are what they'll pick from when they send a campaign.
+When a user visits the application, they follow this complete end-to-end workflow:
 
-**Campaigns.** This is the heart of it. A campaign is a name plus the email itself (subject and body). For choosing who gets it, give them two options. One is picking an audience or a tag. The other is a box where they paste in a bunch of emails or phone numbers, and for each one you look it up against their saved contacts and show the name next to it, so they can sanity check who they're about to email. Anything you can't match, flag it.
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│ 1. Auth &       │ ──> │ 2. Contact       │ ──> │ 3. Audience     │
+│    Workspace    │     │    Import & CRUD │     │    Segmentation │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+                                                          │
+┌─────────────────┐     ┌──────────────────┐              │
+│ 5. Analytics &  │ <── │ 4. Campaign      │ <────────────┘
+│    Live Tracking│     │    Dispatch      │
+└─────────────────┘     └──────────────────┘
+```
 
-They can either send right away or pick a date and time to send later. The scheduled ones are the part we care about most here, so run them through the Redis queue and make sure they actually fire at the right time and would survive the server restarting. A `setTimeout` or one big interval looping over the table isn't what we're after.
+### Step 1: Account Registration & Workspace Setup
+1. **Sign Up / Login**: User creates an account with Company Name, User Name, Email, and Password.
+2. **Automatic Isolation**: A dedicated `Workspace` is automatically created for the user. All contacts, audiences, and campaigns are completely isolated to this workspace on the backend.
 
-For the actual sending, pick any email provider that gives you open tracking and webhooks for free. A few that work without you needing to own a domain: Mailgun (free sandbox domain, no DNS to set up, sends to about five verified addresses which is plenty here), Brevo (verify a single sender email, decent daily limit), or MailerSend. Use whatever you like as long as you can catch "opened" events over a webhook.
+### Step 2: Adding & Importing Contacts
+1. **Add Single Contact**: Manually create contacts with Name, Email, Phone, City, Custom Tags, and Key-Value Custom Fields.
+2. **Bulk CSV Import**: Upload a CSV file (e.g. `mock-data/contacts.csv`).
+3. **Duplicate Prevention**: The backend inspects incoming contacts against existing records by `email` and `phone`. Duplicates are automatically skipped.
+4. **Import Summary**: Displays a toast notification and summary breakdown (`Added: X, Skipped Duplicates: Y, Failed: Z`).
 
-**Analytics.** Each campaign gets a little performance page: how many were sent, delivered, opened. You feed the opened/delivered counts from the provider's webhooks. The page should refresh those numbers on its own every few seconds (polling is fine) so you can watch them tick up without hitting reload. Do keep in mind open tracking is never exact since some mail clients block the tracking pixel, so we won't hold the usual gaps against you.
+### Step 3: Audience Building & Segmentation
+1. **Create Audience**: Define named target segments based on filter rules (e.g. City = "New York" or Tags = "VIP").
+2. **Live Member Count**: The system dynamically calculates how many saved contacts match the criteria.
 
-**Deploying it.** Put it somewhere we can actually log in and click around: Vercel, Railway, Render, whatever's easiest. Free tiers are fine. It has to genuinely run in production, not just on your machine.
+### Step 4: Campaign Creation & Delivery
+1. **Draft Campaign**: Enter Campaign Name, Email Subject, and HTML/Text Body.
+2. **Recipient Selection**:
+   - **Audience / Tags**: Choose a saved Audience or specific Tag filter.
+   - **Direct Selection**: Paste emails or phone numbers (matched against saved contacts in real-time).
+3. **Scheduling Options**:
+   - **Send Now**: Immediately pushes jobs to the **BullMQ** Redis queue for fast worker processing.
+   - **Schedule for Later**: Select a future date and time. The job is queued with a native Redis delay.
 
-## If you have time left over
+### Step 5: Real-Time Analytics & Webhook Tracking
+1. **Live Performance Dashboard**: Navigate to the Campaign Analytics view.
+2. **Metric KPI Cards**: View Total Recipients, Sent, Delivered, Opened, and Failed counts.
+3. **Auto-Polling UI**: The analytics page auto-refreshes every 3 seconds (with a pause/resume toggle).
+4. **Webhook Updates**: As Brevo dispatches webhook events (`delivered`, `opened`), recipient statuses update dynamically without forcing a full page reload.
 
-A couple of things that'd earn extra credit once the above is solid, but skip them if you're tight: a button to duplicate an existing campaign (copy its content and recipients into a fresh draft to tweak and resend), and support for attaching a file like a PDF to the outgoing email.
+---
 
-## Sending it back to us
 
-Send over the live URL and a link to the GitHub repo. Commit as you go so we can see how you worked rather than one giant final commit, and please don't check in your `.env` or any keys. Add a short README covering how to run it locally, what environment variables it expects, and a line or two on anything you decided or traded off along the way.
+## 🚀 How to Run Locally
 
-Last thing, and this one isn't optional: record a short Loom (or similar) with your voice walking us through the app end to end. That's how we'll actually follow what you built. Walking us through the code as well is a nice bonus but the working demo is the must.
+### Prerequisites
+- **Node.js**: `v20.x` or later
+- **PostgreSQL**: Local instance or hosted connection string
+- **Redis**: Local `redis-server` (port 6379) or hosted Redis instance
 
-## What we're looking at
+---
 
-Mostly the structure and the judgement: is the codebase laid out sensibly, is the data model reasonable, is the account isolation actually airtight, does the campaign flow hang together, is the scheduling done as real queued jobs, and does the analytics really update on its own. Clean and working and live beats a long feature list every time.
+### Step 1: Clone & Install Dependencies
 
-The stuff that'll stand out the wrong way: account checks done only in the UI, duplicate contacts slipping through, scheduling faked instead of queued, analytics that never move, secrets committed to the repo, or it not being deployed at all.
+```bash
+# Clone the repository
+git clone https://github.com/your-username/email-marketing.git
+cd email-marketing
 
-And if you don't get to something, just say so in the README and tell us how you'd have done it. That's a fine answer.
+# Install root & workspace dependencies
+npm install
+
+# Install backend dependencies
+cd backend && npm install
+
+# Install frontend dependencies
+cd ../frontend && npm install
+```
+
+---
+
+### Step 2: Configure Environment Variables
+
+
+
+
+#### Frontend Environment Setup
+Create `frontend/.env` (see `frontend/.env.example`):
+```env
+NEXT_PUBLIC_API_URL="http://localhost:5000/api"
+```
+
+---
+
+### Step 3: Database Migration & Setup
+
+```bash
+cd backend
+# Generate Prisma Client & apply database migrations
+npx prisma migrate dev --name init
+```
+
+---
+
+### Step 4: Run the Application Locally
+
+Open 3 terminal windows to run all necessary services:
+
+#### Terminal 1: Backend API Server
+```bash
+cd backend
+npm run dev
+# Running on http://localhost:5000
+```
+
+#### Terminal 2: BullMQ Campaign Worker
+```bash
+cd backend
+npm run worker
+# Listens to campaignQueue on Redis
+```
+
+#### Terminal 3: Frontend Next.js Client
+```bash
+cd frontend
+npm run dev
+# Running on http://localhost:3000
+```
+
+---
+
+## 🔑 Environment Variables Reference
+
+### Backend (`backend/.env`)
+
+| Variable | Required | Description |
+| :--- | :---: | :--- |
+| `DATABASE_URL` | Yes | PostgreSQL connection string (Prisma) |
+| `JWT_ACCESS_SECRET` | Yes | Secret key for signing short-lived access JWTs |
+| `JWT_REFRESH_SECRET` | Yes | Secret key for signing refresh tokens |
+| `NODE_ENV` | Yes | Environment mode (`development` / `production`) |
+| `BREVO_API_KEY` | Yes | Brevo API key for transactional emails |
+| `MAIL_FROM` | Yes | Sender email address verified in Brevo |
+| `REDIS_URL` | Yes | Connection URL for Redis server (BullMQ) |
+| `PORT` | Optional | Backend API port (default `5000`) |
+| `FRONTEND_URL` | Optional | Frontend origin for CORS configuration |
+
+### Frontend (`frontend/.env`)
+
+| Variable | Required | Description |
+| :--- | :---: | :--- |
+| `NEXT_PUBLIC_API_URL` | Yes | Full base URL of the backend API |
+
+---
+
+##  Key Features & Architectural Highlights
+
+### 1. Workspace & Account Isolation
+- Multi-tenancy is enforced on the server for all data layers.
+- `Workspace` is the root boundary entity (`Contact`, `Audience`, `Campaign` all have `@relation(workspaceId)`).
+- Every repository call explicitly filters by `where: { workspaceId }` derived from `req.user.workspaceId` populated by `authMiddleware`.
+
+### 2. Contact Management & CSV Import
+- Manual contact creation & bulk CSV import (`mock-data/contacts.csv`).
+- **Duplicate Prevention**: Multi-column DB unique constraints `@@unique([workspaceId, email])` and `@@unique([workspaceId, phone])`.
+- Pre-insert sanitization trims whitespace and converts empty strings to `null` to avoid false unique index collisions.
+- Detailed post-import summary report returning count of added, skipped, duplicates, and failed rows.
+- Dynamic custom fields stored securely as structured JSON (`customFields Json?`).
+
+### 3. Audiences & Contact Filtering
+- Create dynamic audience groups based on criteria (e.g. city, custom tags).
+- Live calculation of contact counts matching filter criteria.
+
+### 4. Real Queue-Based Campaign Delivery
+- Uses **BullMQ** backed by **Redis** for asynchronous processing.
+- Immediate sending enqueues jobs with 0 delay.
+- Scheduled sending calculates `delay = scheduledAt - Date.now()` natively in BullMQ.
+- Survives API server crashes/restarts as jobs persist in Redis and are picked up by independent worker processes.
+
+### 5. Webhook Integration & Live Analytics Auto-Refresh
+- Implemented Brevo HTTP webhook endpoint (`POST /api/webhooks/brevo`).
+- Tracks recipient delivery lifecycle: `PENDING` → `SENT` → `DELIVERED` → `OPENED` / `FAILED`.
+- Stores `providerMessageId` to correlate webhooks idempotently without status downgrade risks.
+- Analytics page updates metrics in real-time using continuous 3-second auto-polling with pause/resume capability.
+
+### 6. Full-Stack Form Validation
+- Client-side validation using custom form hooks with inline error messaging.
+- Server-side strict Zod validation middleware (`validateBody`, `validateParams`) on all endpoints.
+
+---
+
+##  Trade-offs & Intentionally Omitted Features
+
+1. **Campaign Editing Disabled Post-Creation**:
+   - *Decision*: Once a campaign is created, editing is intentionally disabled.
+   - *Rationale*: Modifying recipients or email body while a job is enqueued in Redis or actively processing introduces race conditions and recipient state inconsistencies. Campaigns follow an immutable log pattern (Draft/Scheduled → Sending → Sent).
+
+2. **Single-Node Queue Deployment**:
+   - *Decision*: BullMQ worker runs alongside API or as a single worker process.
+   - *Trade-off*: Sufficient for high concurrency under standard workloads. Scaling to multi-region worker pools can be achieved by launching additional worker instances consuming from the same Redis queue.
+
+3. **Optional Extra Credit Features (PDF Attachments)**:
+   - Skipped attachment handling to focus 100% on bulletproof queue delivery, webhook tracking, schema isolation, and validation layer completeness.
+
+---
+
+## Deployment Architecture
+
+- **Database**: PostgreSQL hosted on Render / Supabase.
+- **Redis**: Hosted Redis instance (Render / Upstash).
+- **Backend API**: Render Web Service (`npm run start`).
+- **Worker Process**: Render Background Worker (`npm run worker`).
+- **Frontend**: Render / Vercel Web Service (`npm run build && npm run start`).
