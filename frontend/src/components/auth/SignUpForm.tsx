@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Checkbox from "@/components/form/input/Checkbox";
 import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
+import AlertNotification from "@/components/ui/alert/AlertNotification";
 import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import api from "@/lib/api";
 
@@ -16,6 +17,11 @@ export default function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [alertInfo, setAlertInfo] = useState<{
+    variant: "success" | "error";
+    title: string;
+    message: string;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -35,54 +41,94 @@ export default function SignUpForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    setAlertInfo(null);
+
+    if (!formData.firstName.trim()) {
+      setAlertInfo({
+        variant: "error",
+        title: "Validation Error",
+        message: "First name is required.",
+      });
+      return;
+    }
+    if (!formData.companyName.trim()) {
+      setAlertInfo({
+        variant: "error",
+        title: "Validation Error",
+        message: "Company name is required.",
+      });
+      return;
+    }
+    if (!formData.email.trim()) {
+      setAlertInfo({
+        variant: "error",
+        title: "Validation Error",
+        message: "Email address is required.",
+      });
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      setAlertInfo({
+        variant: "error",
+        title: "Validation Error",
+        message: "Please enter a valid email address.",
+      });
+      return;
+    }
+    if (!formData.password || formData.password.length < 6) {
+      setAlertInfo({
+        variant: "error",
+        title: "Validation Error",
+        message: "Password must be at least 6 characters long.",
+      });
+      return;
+    }
+
     setLoading(true);
 
-  try {
-  const response = await api.post("/auth/signup", {
-    name: `${formData.firstName} ${formData.lastName}`,
-    companyName: formData.companyName,
-    email: formData.email,
-    password: formData.password,
-  });
+    try {
+      const response = await api.post("/auth/signup", {
+        name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
+        companyName: formData.companyName.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+      });
 
-  const result = response.data;
+      const result = response.data;
 
-  console.log("REGISTER RESPONSE:", result);
+      localStorage.setItem("accessToken", result.accessToken);
+      localStorage.setItem("user", JSON.stringify(result.user));
 
+      setAlertInfo({
+        variant: "success",
+        title: "Success",
+        message: result.message || "Account created successfully!",
+      });
 
-  localStorage.setItem(
-    "accessToken",
-    result.accessToken
-  );
-
-  localStorage.setItem(
-    "user",
-    JSON.stringify(result.user)
-  );
-
-  alert(result.message);
-
-  router.push("/signin");
-
-} catch (error: any) {
-  alert(
-    error.response?.data?.message ||
-    error.message
-  );
-} finally {
-  setLoading(false);
-}
+      setTimeout(() => {
+        router.push("/signin");
+      }, 1500);
+    } catch (error: any) {
+      setAlertInfo({
+        variant: "error",
+        title: "Registration Failed",
+        message: error.response?.data?.message || error.message || "Failed to create account.",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="flex flex-col flex-1 lg:w-1/2 w-full overflow-y-auto no-scrollbar">
       <div className="w-full max-w-md sm:pt-10 mx-auto mb-5">
         <Link
-          href="/"
+          href="/campaigns"
           className="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
         >
           <ChevronLeftIcon />
-          Back to dashboard
+          Back to campaigns
         </Link>
       </div>
 
@@ -97,6 +143,16 @@ export default function SignUpForm() {
               Enter your details to create an account.
             </p>
           </div>
+
+          {alertInfo && (
+            <AlertNotification
+              variant={alertInfo.variant}
+              title={alertInfo.title}
+              message={alertInfo.message}
+              onClose={() => setAlertInfo(null)}
+              durationMs={3000}
+            />
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className="space-y-5">

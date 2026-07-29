@@ -10,7 +10,8 @@ import {
   TableRow,
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
-import { getCampaigns } from "@/lib/campaigns.api";
+import AlertNotification from "../ui/alert/AlertNotification";
+import { getCampaigns, deleteCampaign } from "@/lib/campaigns.api";
 import { Campaign, CampaignStatus } from "@/types/campaign";
 
 interface CampaignTableProps {
@@ -21,6 +22,13 @@ export default function CampaignTable({ onCreateClick }: CampaignTableProps) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [alertInfo, setAlertInfo] = useState<{
+    variant: "success" | "error";
+    title: string;
+    message: string;
+  } | null>(null);
 
   const fetchCampaigns = async () => {
     try {
@@ -41,6 +49,33 @@ export default function CampaignTable({ onCreateClick }: CampaignTableProps) {
   useEffect(() => {
     fetchCampaigns();
   }, []);
+
+  const handleDelete = async (id: string) => {
+    try {
+      setDeleting(true);
+      setAlertInfo(null);
+      
+      await deleteCampaign(id);
+      
+      setAlertInfo({
+        variant: "success",
+        title: "Deleted",
+        message: "Campaign deleted successfully.",
+      });
+      setDeleteConfirmId(null);
+      
+      // Update UI state asynchronously without needing page refresh
+      setCampaigns((prev) => prev.filter((c) => c.id !== id));
+    } catch (err: any) {
+      setAlertInfo({
+        variant: "error",
+        title: "Delete Failed",
+        message: err.response?.data?.message || "Failed to delete campaign.",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const getStatusBadge = (status: CampaignStatus) => {
     switch (status) {
@@ -79,6 +114,44 @@ export default function CampaignTable({ onCreateClick }: CampaignTableProps) {
         )}
       </div>
 
+      {/* Alert Notifications */}
+      {alertInfo && (
+        <div className="mb-4">
+          <AlertNotification
+            variant={alertInfo.variant}
+            title={alertInfo.title}
+            message={alertInfo.message}
+            onClose={() => setAlertInfo(null)}
+            durationMs={2500}
+          />
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirmId && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm dark:border-red-900/40 dark:bg-red-950/40 flex items-center justify-between">
+          <div className="text-red-700 dark:text-red-300 font-medium">
+            Are you sure you want to delete this campaign? This action cannot be undone.
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setDeleteConfirmId(null)}
+              disabled={deleting}
+              className="rounded-lg border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:border-gray-700"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => handleDelete(deleteConfirmId)}
+              disabled={deleting}
+              className="rounded-lg bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {deleting ? "Deleting..." : "Confirm Delete"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Error */}
       {error && (
         <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
@@ -89,7 +162,7 @@ export default function CampaignTable({ onCreateClick }: CampaignTableProps) {
       {/* Table Container */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
         <div className="max-w-full overflow-x-auto">
-          <div className="min-w-[900px]">
+          <div className="min-w-[850px]">
             <Table>
               <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
                 <TableRow>
@@ -177,12 +250,18 @@ export default function CampaignTable({ onCreateClick }: CampaignTableProps) {
 
                       {/* Actions */}
                       <TableCell className="px-4 py-3 text-start">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setDeleteConfirmId(campaign.id)}
+                            className="rounded px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                          >
+                            Delete
+                          </button>
                           <Link
                             href={`/campaigns/${campaign.id}/analytics`}
                             className="inline-flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400"
                           >
-                            Analytics & Stats
+                            Stats
                           </Link>
                         </div>
                       </TableCell>

@@ -1,15 +1,21 @@
 export interface CreateContactPayload {
     name: string;
-    email: string;
-    phone: string;
+    email?: string;
+    phone?: string;
     city?: string;
     tags?: string[];
     customFields?: Record<string, string>;
 }
 
-export interface Contact extends CreateContactPayload {
+export interface Contact {
     id: string;
     workspaceId: string;
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    city?: string | null;
+    tags?: string[];
+    customFields?: Record<string, string> | null;
     createdAt: string;
 }
 

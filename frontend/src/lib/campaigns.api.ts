@@ -38,3 +38,10 @@ export const getCampaignAnalytics = async (
   );
   return response.data.data;
 };
+
+export const deleteCampaign = async (id: string): Promise<{ success: boolean; message?: string }> => {
+  const response = await api.delete<{ success: boolean; message?: string }>(
+    `/campaigns/${id}`
+  );
+  return response.data;
+};

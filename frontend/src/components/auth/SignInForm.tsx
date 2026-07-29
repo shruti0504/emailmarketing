@@ -8,6 +8,7 @@ import Checkbox from "@/components/form/input/Checkbox";
 import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
+import AlertNotification from "@/components/ui/alert/AlertNotification";
 import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import api from "@/lib/api";
 
@@ -17,6 +18,11 @@ export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [alertInfo, setAlertInfo] = useState<{
+    variant: "success" | "error";
+    title: string;
+    message: string;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -33,51 +39,77 @@ export default function SignInForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    setAlertInfo(null);
+
+    // Validation
+    if (!formData.email.trim()) {
+      setAlertInfo({
+        variant: "error",
+        title: "Validation Error",
+        message: "Email address is required.",
+      });
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      setAlertInfo({
+        variant: "error",
+        title: "Validation Error",
+        message: "Please enter a valid email address.",
+      });
+      return;
+    }
+    if (!formData.password) {
+      setAlertInfo({
+        variant: "error",
+        title: "Validation Error",
+        message: "Password is required.",
+      });
+      return;
+    }
+
     setLoading(true);
 
-try {
-  const response = await api.post("/auth/login", {
-    email: formData.email,
-    password: formData.password,
-  });
+    try {
+      const response = await api.post("/auth/login", {
+        email: formData.email.trim(),
+        password: formData.password,
+      });
 
-  const result = response.data;
+      const result = response.data;
 
-  console.log("LOGIN RESPONSE:", result);
+      localStorage.setItem("accessToken", result.accessToken);
+      localStorage.setItem("user", JSON.stringify(result.user));
 
-  localStorage.setItem(
-    "accessToken",
-    result.accessToken
-  );
+      setAlertInfo({
+        variant: "success",
+        title: "Success",
+        message: result.message || "Logged in successfully!",
+      });
 
-  localStorage.setItem(
-    "user",
-    JSON.stringify(result.user)
-  );
-
-  alert(result.message);
-
-  router.push("/dashboard");
-
-} catch (err: any) {
-  alert(
-    err.response?.data?.message ||
-    err.message
-  );
-} finally {
-  setLoading(false);
-}
+      setTimeout(() => {
+        router.push("/campaigns");
+      }, 1000);
+    } catch (err: any) {
+      setAlertInfo({
+        variant: "error",
+        title: "Authentication Failed",
+        message: err.response?.data?.message || err.message || "Failed to sign in.",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="flex flex-col flex-1 lg:w-1/2 w-full">
       <div className="w-full max-w-md sm:pt-10 mx-auto mb-5">
         <Link
-          href="/"
+          href="/campaigns"
           className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
         >
           <ChevronLeftIcon />
-          Back to dashboard
+          Back to campaigns
         </Link>
       </div>
 
@@ -92,6 +124,16 @@ try {
               Enter your email and password to sign in!
             </p>
           </div>
+
+          {alertInfo && (
+            <AlertNotification
+              variant={alertInfo.variant}
+              title={alertInfo.title}
+              message={alertInfo.message}
+              onClose={() => setAlertInfo(null)}
+              durationMs={3000}
+            />
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className="space-y-6">

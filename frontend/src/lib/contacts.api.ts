@@ -68,7 +68,12 @@ export const importContacts = async (
 
     const response = await api.post(
         "/contacts/import",
-        formData
+        formData,
+        {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        }
     );
 
     return response.data;

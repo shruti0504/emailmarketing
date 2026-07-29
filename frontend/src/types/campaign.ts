@@ -10,7 +10,6 @@ export interface CreateCampaignPayload {
 
   audienceId?: string;
   tags?: string[];
-  emails?: string[];
 
   scheduledAt?: string;
 }

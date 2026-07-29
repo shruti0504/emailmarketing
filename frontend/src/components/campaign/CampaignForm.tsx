@@ -6,20 +6,14 @@ import { getAudiences } from "@/lib/audiences.api";
 import { getContacts } from "@/lib/contacts.api";
 import { Audience } from "@/types/audience";
 import { Contact } from "@/types/contact";
-import Badge from "../ui/badge/Badge";
+import AlertNotification from "../ui/alert/AlertNotification";
 
 interface CampaignFormProps {
   onCancel: () => void;
   onSuccess?: () => void;
 }
 
-type RecipientMode = "audience" | "paste";
 type SendTiming = "now" | "later";
-
-interface ParsedRecipient {
-  raw: string;
-  matchedContact?: Contact;
-}
 
 export default function CampaignForm({
   onCancel,
@@ -30,11 +24,9 @@ export default function CampaignForm({
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
 
-  // Target selection
-  const [recipientMode, setRecipientMode] = useState<RecipientMode>("audience");
+  // Option A Target selection
   const [selectedAudienceId, setSelectedAudienceId] = useState("");
   const [selectedTags, setSelectedTags] = useState("");
-  const [pastedRecipientsText, setPastedRecipientsText] = useState("");
 
   // Timing
   const [sendTiming, setSendTiming] = useState<SendTiming>("now");
@@ -47,8 +39,12 @@ export default function CampaignForm({
 
   // Form submission state
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [alertInfo, setAlertInfo] = useState<{
+    variant: "success" | "error";
+    title: string;
+    message: string;
+  } | null>(null);
+
   const [submissionResult, setSubmissionResult] = useState<{
     matchedRecipients: number;
     unmatched: string[];
@@ -73,56 +69,6 @@ export default function CampaignForm({
     fetchData();
   }, []);
 
-  // Real-time recipient inspector for pasted text
-  const parsedRecipients = useMemo<ParsedRecipient[]>(() => {
-    if (!pastedRecipientsText.trim()) return [];
-
-    const rawList = pastedRecipientsText
-      .split(/[\n,;]+/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-
-    // Remove duplicates
-    const uniqueRawList = Array.from(new Set(rawList));
-
-    return uniqueRawList.map((raw) => {
-      const cleanRaw = raw.toLowerCase();
-
-      // Try matching by email first, then phone
-      const matchedContact = contacts.find((contact) => {
-        const contactEmail = (contact.email || "").toLowerCase();
-        const contactPhone = (contact.phone || "").replace(/\D/g, "");
-        const cleanRawPhone = raw.replace(/\D/g, "");
-
-        if (contactEmail && contactEmail === cleanRaw) {
-          return true;
-        }
-        if (
-          cleanRawPhone.length > 5 &&
-          contactPhone &&
-          (contactPhone === cleanRawPhone || contactPhone.endsWith(cleanRawPhone))
-        ) {
-          return true;
-        }
-        return false;
-      });
-
-      return {
-        raw,
-        matchedContact,
-      };
-    });
-  }, [pastedRecipientsText, contacts]);
-
-  const matchedCount = useMemo(
-    () => parsedRecipients.filter((r) => r.matchedContact).length,
-    [parsedRecipients]
-  );
-  const unmatchedCount = useMemo(
-    () => parsedRecipients.filter((r) => !r.matchedContact).length,
-    [parsedRecipients]
-  );
-
   // Available tags extracted from all saved contacts
   const availableTags = useMemo(() => {
     const tagSet = new Set<string>();
@@ -136,100 +82,110 @@ export default function CampaignForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAlertInfo(null);
+    setSubmissionResult(null);
+
+    // Client-side validations
+    if (!name.trim()) {
+      setAlertInfo({
+        variant: "error",
+        title: "Validation Error",
+        message: "Campaign name is required.",
+      });
+      return;
+    }
+
+    if (!subject.trim()) {
+      setAlertInfo({
+        variant: "error",
+        title: "Validation Error",
+        message: "Email subject line is required.",
+      });
+      return;
+    }
+
+    if (!body.trim()) {
+      setAlertInfo({
+        variant: "error",
+        title: "Validation Error",
+        message: "Email message body content is required.",
+      });
+      return;
+    }
+
+    const tagsArray = selectedTags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    if (!selectedAudienceId && tagsArray.length === 0) {
+      setAlertInfo({
+        variant: "error",
+        title: "Validation Error",
+        message: "Please select an audience segment or specify at least one contact tag.",
+      });
+      return;
+    }
+
+    let formattedScheduledAt: string | undefined = undefined;
+    if (sendTiming === "later") {
+      if (!scheduledAt) {
+        setAlertInfo({
+          variant: "error",
+          title: "Validation Error",
+          message: "Please specify date and time for scheduled send.",
+        });
+        return;
+      }
+      if (new Date(scheduledAt).getTime() <= Date.now()) {
+        setAlertInfo({
+          variant: "error",
+          title: "Validation Error",
+          message: "Scheduled send date must be in the future.",
+        });
+        return;
+      }
+      formattedScheduledAt = new Date(scheduledAt).toISOString();
+    }
 
     try {
       setLoading(true);
-      setError("");
-      setSuccess("");
-      setSubmissionResult(null);
-
-      if (!name.trim()) {
-        setError("Campaign name is required.");
-        setLoading(false);
-        return;
-      }
-      if (!subject.trim()) {
-        setError("Email subject is required.");
-        setLoading(false);
-        return;
-      }
-      if (!body.trim()) {
-        setError("Email body content is required.");
-        setLoading(false);
-        return;
-      }
-
-      // Build payload
-      const tagsArray = selectedTags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
-
-      let emailsList: string[] = [];
-
-      if (recipientMode === "paste") {
-        // Collect emails from parsed recipients
-        emailsList = parsedRecipients.map((item) => {
-          if (item.matchedContact && item.matchedContact.email) {
-            return item.matchedContact.email;
-          }
-          return item.raw;
-        });
-
-        if (emailsList.length === 0) {
-          setError("Please enter at least one recipient email or phone number.");
-          setLoading(false);
-          return;
-        }
-      } else {
-        if (!selectedAudienceId && tagsArray.length === 0) {
-          setError("Please select an audience or enter at least one tag.");
-          setLoading(false);
-          return;
-        }
-      }
-
-      let formattedScheduledAt: string | undefined = undefined;
-      if (sendTiming === "later") {
-        if (!scheduledAt) {
-          setError("Please specify date and time for scheduled send.");
-          setLoading(false);
-          return;
-        }
-        formattedScheduledAt = new Date(scheduledAt).toISOString();
-      }
 
       const payload = {
         name: name.trim(),
         subject: subject.trim(),
         body: body.trim(),
-        audienceId: recipientMode === "audience" && selectedAudienceId ? selectedAudienceId : undefined,
-        tags: recipientMode === "audience" && tagsArray.length > 0 ? tagsArray : undefined,
-        emails: recipientMode === "paste" ? emailsList : undefined,
+        audienceId: selectedAudienceId || undefined,
+        tags: tagsArray.length > 0 ? tagsArray : undefined,
         scheduledAt: formattedScheduledAt,
       };
 
       const result = await createCampaign(payload);
-
+      
       setSubmissionResult({
         matchedRecipients: result.matchedRecipients,
         unmatched: result.unmatched,
       });
 
-      setSuccess(
-        sendTiming === "later"
-          ? "Campaign scheduled successfully! It will fire at the designated time via Redis queue."
-          : "Campaign created and sending initiated!"
-      );
+      setAlertInfo({
+        variant: "success",
+        title: "Campaign Created",
+        message:
+          sendTiming === "later"
+            ? "Campaign scheduled successfully! It will fire at the designated time."
+            : `Campaign created and sending initiated to ${result.matchedRecipients} recipient(s)!`,
+      });
 
       setTimeout(() => {
         onSuccess?.();
-      }, 1800);
+      }, 1500);
     } catch (err: any) {
       console.error("Campaign creation error:", err);
-      setError(
-        err.response?.data?.message || "Failed to create campaign. Please check inputs."
-      );
+      setAlertInfo({
+        variant: "error",
+        title: "Creation Failed",
+        message: err.response?.data?.message || err.message || "Failed to create campaign. Please check inputs.",
+      });
     } finally {
       setLoading(false);
     }
@@ -243,28 +199,26 @@ export default function CampaignForm({
           Create New Campaign
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Design your campaign, select target recipients, and schedule or send immediately.
+          Design your email campaign, select target audience segments, and schedule or launch immediately.
         </p>
       </div>
 
       <form onSubmit={handleSubmit}>
         <div className="p-6 space-y-6">
-          {/* Notifications */}
-          {error && (
-            <div className="rounded-lg bg-red-50 p-4 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
-              {error}
-            </div>
+          {/* Alert Notifications */}
+          {alertInfo && (
+            <AlertNotification
+              variant={alertInfo.variant}
+              title={alertInfo.title}
+              message={alertInfo.message}
+              onClose={() => setAlertInfo(null)}
+              durationMs={3000}
+            />
           )}
 
-          {success && (
-            <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700 dark:bg-green-900/20 dark:text-green-400 space-y-1">
-              <div className="font-semibold">{success}</div>
-              {submissionResult && (
-                <div className="text-xs">
-                  Matched Recipients: {submissionResult.matchedRecipients} |
-                  Unmatched Items: {submissionResult.unmatched.length}
-                </div>
-              )}
+          {submissionResult && (
+            <div className="rounded-lg bg-blue-50 p-3.5 text-xs text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 font-medium">
+              Matched Recipients: <span className="font-bold">{submissionResult.matchedRecipients}</span>
             </div>
           )}
 
@@ -322,167 +276,67 @@ export default function CampaignForm({
 
           <hr className="border-gray-200 dark:border-gray-800" />
 
-          {/* Target Selection Section */}
+          {/* Target Selection Section (Option A strictly) */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider dark:text-gray-300">
-              2. Choose Audience & Target Recipients
+              2. Target Audience & Segment Selection
             </h3>
 
-            {/* Mode Switcher */}
-            <div className="flex gap-4 border-b border-gray-200 dark:border-gray-800 pb-2">
-              <button
-                type="button"
-                onClick={() => setRecipientMode("audience")}
-                className={`pb-2 px-3 text-sm font-medium transition-colors border-b-2 ${
-                  recipientMode === "audience"
-                    ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
-                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                }`}
-              >
-                Option A: Select Saved Audience / Tag
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setRecipientMode("paste")}
-                className={`pb-2 px-3 text-sm font-medium transition-colors border-b-2 ${
-                  recipientMode === "paste"
-                    ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
-                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                }`}
-              >
-                Option B: Paste Email / Phone List
-              </button>
-            </div>
-
-            {/* Option A: Audience / Tag Selection */}
-            {recipientMode === "audience" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Select Audience Segment
-                  </label>
-                  <select
-                    value={selectedAudienceId}
-                    onChange={(e) => setSelectedAudienceId(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                  >
-                    <option value="">-- Choose an Audience --</option>
-                    {audiences.map((aud) => (
-                      <option key={aud.id} value={aud.id}>
-                        {aud.name} {aud.count !== undefined ? `(${aud.count} contacts)` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Or Filter by Contact Tags (comma separated)
-                  </label>
-                  <input
-                    type="text"
-                    value={selectedTags}
-                    onChange={(e) => setSelectedTags(e.target.value)}
-                    placeholder="VIP, Lead, Newsletter"
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                  />
-                  {availableTags.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5 items-center">
-                      <span className="text-xs text-gray-400">Available tags:</span>
-                      {availableTags.slice(0, 6).map((tag) => (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => {
-                            const current = selectedTags
-                              ? selectedTags.split(",").map((t) => t.trim())
-                              : [];
-                            if (!current.includes(tag)) {
-                              setSelectedTags([...current, tag].join(", "));
-                            }
-                          }}
-                          className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded hover:bg-blue-50 hover:text-blue-600"
-                        >
-                          +{tag}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Select Saved Audience Segment
+                </label>
+                <select
+                  value={selectedAudienceId}
+                  onChange={(e) => setSelectedAudienceId(e.target.value)}
+                  disabled={loadingData}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                >
+                  <option value="">-- Choose an Audience --</option>
+                  {audiences.map((aud) => (
+                    <option key={aud.id} value={aud.id}>
+                      {aud.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-            )}
 
-            {/* Option B: Direct Pasted Recipients with Live Matching & Inspection */}
-            {recipientMode === "paste" && (
-              <div className="space-y-4 pt-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Paste Emails or Phone Numbers (separated by lines or commas)
-                  </label>
-                  <textarea
-                    value={pastedRecipientsText}
-                    onChange={(e) => setPastedRecipientsText(e.target.value)}
-                    rows={4}
-                    placeholder={"john@example.com\n+1987654321\nsarah@company.org"}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-mono outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                  />
-                </div>
-
-                {/* Recipient Inspector / Sanity Check Box */}
-                {parsedRecipients.length > 0 && (
-                  <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                        <span>Contact Match Inspector</span>
-                        <span className="text-gray-400">({parsedRecipients.length} total entered)</span>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Badge color="success" size="sm">
-                          {matchedCount} Matched
-                        </Badge>
-                        {unmatchedCount > 0 && (
-                          <Badge color="warning" size="sm">
-                            {unmatchedCount} Unmatched
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="max-h-48 overflow-y-auto space-y-2 pr-1 text-xs">
-                      {parsedRecipients.map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between p-2.5 rounded-lg bg-white border border-gray-100 dark:bg-gray-800 dark:border-gray-700/60"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-gray-800 dark:text-gray-200">
-                              {item.raw}
-                            </span>
-                          </div>
-
-                          {item.matchedContact ? (
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-900 dark:text-white">
-                                {item.matchedContact.name}
-                              </span>
-                              <Badge color="success" size="sm">
-                                Matched Contact
-                              </Badge>
-                            </div>
-                          ) : (
-                            <Badge color="error" size="sm">
-                              Unmatched / Not in Contacts
-                            </Badge>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Or Filter by Contact Tags (comma separated)
+                </label>
+                <input
+                  type="text"
+                  value={selectedTags}
+                  onChange={(e) => setSelectedTags(e.target.value)}
+                  placeholder="e.g. VIP, Lead, Newsletter"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                />
+                {availableTags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5 items-center">
+                    <span className="text-xs text-gray-400">Available tags:</span>
+                    {availableTags.slice(0, 6).map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          const current = selectedTags
+                            ? selectedTags.split(",").map((t) => t.trim())
+                            : [];
+                          if (!current.includes(tag)) {
+                            setSelectedTags([...current, tag].join(", "));
+                          }
+                        }}
+                        className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded hover:bg-blue-50 hover:text-blue-600 transition"
+                      >
+                        +{tag}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
 
           <hr className="border-gray-200 dark:border-gray-800" />
@@ -516,7 +370,7 @@ export default function CampaignForm({
                   className="text-blue-600 focus:ring-blue-500 h-4 w-4"
                 />
                 <span className="text-gray-800 dark:text-gray-200 font-medium">
-                  Schedule for Later (Redis Queue)
+                  Schedule for Later
                 </span>
               </label>
             </div>
@@ -551,10 +405,10 @@ export default function CampaignForm({
             <button
               type="submit"
               disabled={loading || loadingData}
-              className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition"
             >
               {loading
-                ? "Processing Campaign..."
+                ? "Launching..."
                 : sendTiming === "later"
                 ? "Schedule Campaign"
                 : "Send Campaign Now"}

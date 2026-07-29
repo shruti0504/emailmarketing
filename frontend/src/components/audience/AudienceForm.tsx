@@ -2,6 +2,7 @@
 
 import { createAudience } from "@/lib/audiences.api";
 import React, { useState } from "react";
+import AlertNotification from "../ui/alert/AlertNotification";
 
 interface AudienceFormProps {
   onCancel: () => void;
@@ -19,8 +20,11 @@ export default function AudienceForm({
   });
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [alertInfo, setAlertInfo] = useState<{
+    variant: "success" | "error";
+    title: string;
+    message: string;
+  } | null>(null);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement>
@@ -37,16 +41,34 @@ export default function AudienceForm({
     e: React.FormEvent<HTMLFormElement>
   ) => {
     e.preventDefault();
+    setAlertInfo(null);
+
+    // Validation
+    if (!formData.name.trim()) {
+      setAlertInfo({
+        variant: "error",
+        title: "Validation Error",
+        message: "Audience name is required.",
+      });
+      return;
+    }
+
+    if (!formData.city.trim() && !formData.tags.trim()) {
+      setAlertInfo({
+        variant: "error",
+        title: "Validation Error",
+        message: "Please provide at least a city or tags to define the audience segment.",
+      });
+      return;
+    }
 
     try {
       setLoading(true);
-      setError("");
-      setSuccess("");
 
       const body = {
-        name: formData.name,
+        name: formData.name.trim(),
         filterJson: {
-          city: formData.city || undefined,
+          city: formData.city.trim() || undefined,
 
           tags: formData.tags
             .split(",")
@@ -57,9 +79,11 @@ export default function AudienceForm({
 
       await createAudience(body);
 
-      setSuccess(
-        "Audience created successfully."
-      );
+      setAlertInfo({
+        variant: "success",
+        title: "Success",
+        message: "Audience created successfully.",
+      });
 
       setFormData({
         name: "",
@@ -67,7 +91,9 @@ export default function AudienceForm({
         tags: "",
       });
 
-      onSuccess?.();
+      setTimeout(() => {
+        onSuccess?.();
+      }, 1200);
 
     } catch (error: any) {
       console.error(
@@ -75,10 +101,11 @@ export default function AudienceForm({
         error
       );
 
-      setError(
-        error.response?.data?.message ||
-          "Failed to create audience."
-      );
+      setAlertInfo({
+        variant: "error",
+        title: "Create Failed",
+        message: error.response?.data?.message || "Failed to create audience.",
+      });
     } finally {
       setLoading(false);
     }
@@ -92,23 +119,23 @@ export default function AudienceForm({
         <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
           Create Audience
         </h2>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Define a segment of contacts by city, tags, or both.
+        </p>
       </div>
 
       <form onSubmit={handleSubmit}>
         <div className="p-6">
 
-          {/* Error */}
-          {error && (
-            <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
-              {error}
-            </div>
-          )}
-
-          {/* Success */}
-          {success && (
-            <div className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-600">
-              {success}
-            </div>
+          {/* Alert */}
+          {alertInfo && (
+            <AlertNotification
+              variant={alertInfo.variant}
+              title={alertInfo.title}
+              message={alertInfo.message}
+              onClose={() => setAlertInfo(null)}
+              durationMs={2500}
+            />
           )}
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
@@ -116,7 +143,7 @@ export default function AudienceForm({
             {/* Audience Name */}
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Audience Name
+                Audience Name <span className="text-red-500">*</span>
               </label>
 
               <input
@@ -125,7 +152,6 @@ export default function AudienceForm({
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Mumbai Customers"
-                required
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
               />
             </div>

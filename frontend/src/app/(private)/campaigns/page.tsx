@@ -7,21 +7,29 @@ import CampaignTable from "@/components/campaign/CampaignTable";
 import CampaignForm from "@/components/campaign/CampaignForm";
 
 export default function CampaignsPage() {
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+
+  const handleCreate = () => {
+    setShowForm(true);
+  };
 
   return (
     <div>
       <PageBreadcrumb pageTitle="Email Campaigns" />
 
       <div className="space-y-6">
-        {showCreateForm ? (
+        {showForm ? (
           <CampaignForm
-            onCancel={() => setShowCreateForm(false)}
-            onSuccess={() => setShowCreateForm(false)}
+            onCancel={() => {
+              setShowForm(false);
+            }}
+            onSuccess={() => {
+              setShowForm(false);
+            }}
           />
         ) : (
           <ComponentCard title="Campaign Management">
-            <CampaignTable onCreateClick={() => setShowCreateForm(true)} />
+            <CampaignTable onCreateClick={handleCreate} />
           </ComponentCard>
         )}
       </div>

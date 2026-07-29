@@ -1,13 +1,12 @@
-export default function DashboardPage() {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">
-        Dashboard
-      </h1>
+"use client";
 
-      <p>
-        Welcome to your dashboard
-      </p>
-    </div>
-  );
+import { redirect } from "next/navigation";
+import { useEffect } from "react";
+
+export default function DashboardPage() {
+  useEffect(() => {
+    redirect("/campaigns");
+  }, []);
+
+  return null;
 }
