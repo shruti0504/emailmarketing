@@ -21,7 +21,7 @@ app.use(
     origin: (origin, callback) => {
       const allowedOrigins = [
         "http://localhost:3000",
-        process.env.FRONTEND_URL,
+       "https://emailmarketing-frontend.onrender.com",
       ].filter(Boolean) as string[];
 
       // Allow requests with no origin (e.g. Postman, server-to-server)
