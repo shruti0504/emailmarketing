@@ -206,9 +206,13 @@ npm run dev
 - Client-side validation using custom form hooks with inline error messaging.
 - Server-side strict Zod validation middleware (`validateBody`, `validateParams`) on all endpoints.
 
+### 7. Extra Credit Features ✨
+- **Campaign Duplication**: Includes a 1-click **"Duplicate"** button on the campaign table (`POST /api/campaigns/:id/duplicate`). Copies subject, body, and recipients into a fresh draft ready to tweak and send.
+- **File / PDF Attachment Support**: Users can attach documents (PDF, DOC, images up to 5MB) during campaign creation. Files are converted to Base64 and attached to outgoing emails dispatched via Brevo.
+
 ---
 
-##  Trade-offs & Intentionally Omitted Features
+##  Trade-offs & Design Choices
 
 1. **Campaign Editing Disabled Post-Creation**:
    - *Decision*: Once a campaign is created, editing is intentionally disabled.
@@ -217,9 +221,6 @@ npm run dev
 2. **Single-Node Queue Deployment**:
    - *Decision*: BullMQ worker runs alongside API or as a single worker process.
    - *Trade-off*: Sufficient for high concurrency under standard workloads. Scaling to multi-region worker pools can be achieved by launching additional worker instances consuming from the same Redis queue.
-
-3. **Optional Extra Credit Features (PDF Attachments)**:
-   - Skipped attachment handling to focus 100% on bulletproof queue delivery, webhook tracking, schema isolation, and validation layer completeness.
 
 ---
 
