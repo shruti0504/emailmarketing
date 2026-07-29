@@ -16,6 +16,9 @@ export class CampaignRepository {
         scheduledAt: data.scheduledAt
           ? new Date(data.scheduledAt)
           : null,
+        attachmentName: data.attachmentName || null,
+        attachmentUrl: data.attachmentUrl || null,
+        attachmentContent: data.attachmentContent || null,
       },
     });
   }

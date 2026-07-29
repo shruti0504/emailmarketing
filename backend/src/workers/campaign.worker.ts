@@ -30,6 +30,14 @@ const worker = new Worker(
       "SENDING"
     );
 
+    const attachment = (campaign.attachmentName && (campaign.attachmentUrl || campaign.attachmentContent))
+      ? {
+          name: campaign.attachmentName,
+          url: campaign.attachmentUrl ?? undefined,
+          content: campaign.attachmentContent ?? undefined,
+        }
+      : undefined;
+
     for (const recipient of campaign.recipients) {
 
       if (!recipient.contact.email) {
@@ -41,7 +49,8 @@ const worker = new Worker(
           recipient.contact.email,
           recipient.contact.name,
           campaign.subject,
-          campaign.body
+          campaign.body,
+          attachment
         );
 
         // Log the full Brevo response so we can verify the messageId format

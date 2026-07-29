@@ -129,6 +129,10 @@ model Campaign {
 
   providerId    String?
 
+  attachmentName    String?
+  attachmentUrl     String?
+  attachmentContent String?
+
   createdAt     DateTime @default(now())
 
   recipients    CampaignRecipient[]

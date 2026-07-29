@@ -102,4 +102,24 @@ export class CampaignController {
       });
     }
   };
+
+  duplicate = async (req: Request<{ id: string }>, res: Response) => {
+    try {
+      const duplicated = await campaignService.duplicateCampaign(
+        req.params.id,
+        req.user.workspaceId
+      );
+
+      return res.status(201).json({
+        success: true,
+        message: "Campaign duplicated successfully.",
+        data: duplicated,
+      });
+    } catch (error: any) {
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  };
 }

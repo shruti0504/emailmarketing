@@ -38,4 +38,10 @@ router.delete(
   campaignController.delete
 );
 
+router.post(
+  "/:id/duplicate",
+  authMiddleware,
+  campaignController.duplicate
+);
+
 export default router;

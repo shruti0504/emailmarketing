@@ -12,6 +12,9 @@ export const createCampaignSchema = z.object({
     .optional()
     .or(z.literal(""))
     .nullable(),
+  attachmentName: z.string().trim().optional().nullable(),
+  attachmentUrl: z.string().trim().optional().nullable(),
+  attachmentContent: z.string().trim().optional().nullable(),
 }).refine((data) => !!data.audienceId || (!!data.tags && data.tags.length > 0), {
   message: "Please select an audience or provide at least one contact tag.",
 });

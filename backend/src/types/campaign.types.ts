@@ -7,4 +7,8 @@ export interface CreateCampaignDto {
   tags?: string[];
 
   scheduledAt?: string | null;
+
+  attachmentName?: string | null;
+  attachmentUrl?: string | null;
+  attachmentContent?: string | null;
 }

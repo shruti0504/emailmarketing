@@ -84,4 +84,29 @@ export class CampaignService {
 
     await this.campaignRepository.delete(id, workspaceId);
   }
+
+  async duplicateCampaign(id: string, workspaceId: string) {
+    const existing = await this.campaignRepository.findById(id, workspaceId);
+    if (!existing) {
+      throw new AppError("Campaign not found.", 404);
+    }
+
+    // Create a new DRAFT campaign copying subject and body
+    const duplicatedCampaign = await this.campaignRepository.create(workspaceId, {
+      name: `${existing.name} (Copy)`,
+      subject: existing.subject,
+      body: existing.body,
+    });
+
+    // Copy recipients if any exist
+    if (existing.recipients && existing.recipients.length > 0) {
+      const contactIds = existing.recipients.map((r: { contactId: string }) => r.contactId);
+      await this.campaignRecipientRepository.createMany(
+        duplicatedCampaign.id,
+        contactIds
+      );
+    }
+
+    return duplicatedCampaign;
+  }
 }
