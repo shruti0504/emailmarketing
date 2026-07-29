@@ -24,7 +24,35 @@ export default function CampaignForm({
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
 
-  // Option A Target selection
+  // Attachment state
+  const [attachmentName, setAttachmentName] = useState<string | null>(null);
+  const [attachmentContent, setAttachmentContent] = useState<string | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    setAttachmentError(null);
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setAttachmentError("Attachment size must be under 5 MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64Data = result.includes(",") ? result.split(",")[1] : result;
+      setAttachmentName(file.name);
+      setAttachmentContent(base64Data);
+    };
+    reader.onerror = () => {
+      setAttachmentError("Failed to read attachment file.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Target selection
   const [selectedAudienceId, setSelectedAudienceId] = useState("");
   const [selectedTags, setSelectedTags] = useState("");
 
@@ -158,6 +186,8 @@ export default function CampaignForm({
         audienceId: selectedAudienceId || undefined,
         tags: tagsArray.length > 0 ? tagsArray : undefined,
         scheduledAt: formattedScheduledAt,
+        attachmentName: attachmentName || undefined,
+        attachmentContent: attachmentContent || undefined,
       };
 
       const result = await createCampaign(payload);
@@ -271,6 +301,43 @@ export default function CampaignForm({
                 required
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white font-sans"
               />
+            </div>
+
+            {/* File Attachment (PDF / Document) */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Attach File (PDF, Document, max 5MB) <span className="text-xs text-gray-400 font-normal">(Optional Extra Credit)</span>
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                  onChange={handleFileUpload}
+                  className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/40 dark:file:text-blue-300 cursor-pointer"
+                />
+                {attachmentName && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttachmentName(null);
+                      setAttachmentContent(null);
+                    }}
+                    className="text-xs text-red-500 hover:underline"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              {attachmentName && (
+                <p className="mt-1 text-xs text-green-600 font-medium dark:text-green-400">
+                  📎 Attached: {attachmentName}
+                </p>
+              )}
+              {attachmentError && (
+                <p className="mt-1 text-xs text-red-600 font-medium">
+                  {attachmentError}
+                </p>
+              )}
             </div>
           </div>
 

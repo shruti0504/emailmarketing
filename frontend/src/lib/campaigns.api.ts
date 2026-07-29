@@ -45,3 +45,11 @@ export const deleteCampaign = async (id: string): Promise<{ success: boolean; me
   );
   return response.data;
 };
+
+export const duplicateCampaign = async (id: string): Promise<Campaign> => {
+  const response = await api.post<CampaignApiResponse>(
+    `/campaigns/${id}/duplicate`
+  );
+  return response.data.data;
+};
+

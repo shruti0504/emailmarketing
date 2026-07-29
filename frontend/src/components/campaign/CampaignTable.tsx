@@ -11,7 +11,7 @@ import {
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
 import AlertNotification from "../ui/alert/AlertNotification";
-import { getCampaigns, deleteCampaign } from "@/lib/campaigns.api";
+import { getCampaigns, deleteCampaign, duplicateCampaign } from "@/lib/campaigns.api";
 import { Campaign, CampaignStatus } from "@/types/campaign";
 
 interface CampaignTableProps {
@@ -24,6 +24,7 @@ export default function CampaignTable({ onCreateClick }: CampaignTableProps) {
   const [error, setError] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [alertInfo, setAlertInfo] = useState<{
     variant: "success" | "error";
     title: string;
@@ -74,6 +75,28 @@ export default function CampaignTable({ onCreateClick }: CampaignTableProps) {
       });
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleDuplicate = async (id: string) => {
+    try {
+      setDuplicatingId(id);
+      setAlertInfo(null);
+      const newCampaign = await duplicateCampaign(id);
+      setAlertInfo({
+        variant: "success",
+        title: "Duplicated",
+        message: `Campaign duplicated as "${newCampaign.name}".`,
+      });
+      fetchCampaigns();
+    } catch (err: any) {
+      setAlertInfo({
+        variant: "error",
+        title: "Duplication Failed",
+        message: err.response?.data?.message || "Failed to duplicate campaign.",
+      });
+    } finally {
+      setDuplicatingId(null);
     }
   };
 
@@ -251,6 +274,13 @@ export default function CampaignTable({ onCreateClick }: CampaignTableProps) {
                       {/* Actions */}
                       <TableCell className="px-4 py-3 text-start">
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleDuplicate(campaign.id)}
+                            disabled={duplicatingId === campaign.id}
+                            className="rounded px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 disabled:opacity-50"
+                          >
+                            {duplicatingId === campaign.id ? "Copying..." : "Duplicate"}
+                          </button>
                           <button
                             onClick={() => setDeleteConfirmId(campaign.id)}
                             className="rounded px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"

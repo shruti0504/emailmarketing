@@ -12,6 +12,10 @@ export interface CreateCampaignPayload {
   tags?: string[];
 
   scheduledAt?: string;
+
+  attachmentName?: string | null;
+  attachmentUrl?: string | null;
+  attachmentContent?: string | null;
 }
 
 export interface CampaignRecipient {
@@ -34,6 +38,9 @@ export interface Campaign {
   status: CampaignStatus;
   scheduledAt?: string | null;
   providerId?: string | null;
+  attachmentName?: string | null;
+  attachmentUrl?: string | null;
+  attachmentContent?: string | null;
   createdAt: string;
   recipients?: CampaignRecipient[];
 }
